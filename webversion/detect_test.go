@@ -90,3 +90,26 @@ func TestParsePrefersXHHVersionNearWebVersion(t *testing.T) {
 		t.Fatalf("version=%q", got.Version)
 	}
 }
+
+func TestDetectAggregatesVersionAcrossScripts(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`<html><script src="/version.js"></script><script src="/web.js"></script></html>`))
+	})
+	mux.HandleFunc("/version.js", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`window.clientVersion={version:"999.0.4"}`))
+	})
+	mux.HandleFunc("/web.js", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`window.webClient={web_version:"3.0"}`))
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	got, err := Detect(context.Background(), &http.Client{Timeout: time.Second}, []string{server.URL + "/"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Version != "999.0.4" || got.WebVersion != "3.0" {
+		t.Fatalf("got %+v", got)
+	}
+}
