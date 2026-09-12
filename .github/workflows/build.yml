@@ -1,0 +1,95 @@
+name: Build packages
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/build.yml"
+      - "**/*.go"
+      - "go.mod"
+      - "go.sum"
+      - "config.example.json"
+      - "update.bat"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Test
+        run: go test ./...
+
+      - name: Vet
+        run: go vet ./...
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: windows
+            goarch: amd64
+            binary: xhhRobot.exe
+          - goos: linux
+            goarch: amd64
+            binary: xhhRobot
+          - goos: linux
+            goarch: arm64
+            binary: xhhRobot
+          - goos: darwin
+            goarch: amd64
+            binary: xhhRobot
+          - goos: darwin
+            goarch: arm64
+            binary: xhhRobot
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
+        env:
+          CGO_ENABLED: "0"
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          set -euo pipefail
+          package="xhhRobot-${GOOS}-${GOARCH}"
+          mkdir -p "dist/${package}"
+          go build -trimpath -ldflags="-s -w" -o "dist/${package}/${{ matrix.binary }}" .
+          cp config.example.json README.md "dist/${package}/"
+          if [ "${GOOS}" = "windows" ]; then
+            cp update.bat "dist/${package}/"
+          fi
+          (
+            cd "dist/${package}"
+            zip -9 -r "../${package}.zip" .
+          )
+
+      - name: Upload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: xhhRobot-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/xhhRobot-${{ matrix.goos }}-${{ matrix.goarch }}.zip
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
