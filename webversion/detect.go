@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"html"
 	"io"
 	"net/http"
 	"net/url"
@@ -73,6 +74,7 @@ func detectRoot(ctx context.Context, client *http.Client, root string) (Versions
 		versions.Source = finalURL
 		return versions, nil
 	}
+	partialVersion, partialWebVersion := parsePartial(body)
 
 	base, err := url.Parse(finalURL)
 	if err != nil {
@@ -103,6 +105,16 @@ func detectRoot(ctx context.Context, client *http.Client, root string) (Versions
 		if versions, ok := Parse(script); ok {
 			versions.Source = scriptURL
 			return versions, nil
+		}
+		version, webVersion := parsePartial(script)
+		if partialVersion == "" && version != "" {
+			partialVersion = version
+		}
+		if partialWebVersion == "" && webVersion != "" {
+			partialWebVersion = webVersion
+		}
+		if partialVersion != "" && partialWebVersion != "" {
+			return Versions{Version: partialVersion, WebVersion: partialWebVersion, Source: scriptURL}, nil
 		}
 	}
 	return Versions{}, errors.New("在首页及脚本资源中未识别到 version/web_version")
@@ -140,7 +152,7 @@ func fetchText(ctx context.Context, client *http.Client, target string, limit in
 }
 
 func resolveScriptURL(base *url.URL, src string) (string, error) {
-	src = strings.TrimSpace(strings.ReplaceAll(src, `\u0026`, "&"))
+	src = html.UnescapeString(strings.TrimSpace(strings.ReplaceAll(src, `\u0026`, "&")))
 	ref, err := url.Parse(src)
 	if err != nil {
 		return "", err
@@ -165,6 +177,20 @@ func Parse(text string) (Versions, bool) {
 		return Versions{Version: v, WebVersion: w}, true
 	}
 	return Versions{}, false
+}
+
+func parsePartial(text string) (string, string) {
+	version := selectClientVersion(append(queryVerRE.FindAllStringSubmatch(text, -1), versionRE.FindAllStringSubmatch(text, -1)...))
+	if !strings.HasPrefix(version, "999.") {
+		version = ""
+	}
+	webVersion := ""
+	if match := queryWebRE.FindStringSubmatch(text); len(match) > 1 {
+		webVersion = match[1]
+	} else if match := webVerRE.FindStringSubmatch(text); len(match) > 1 {
+		webVersion = match[1]
+	}
+	return version, webVersion
 }
 
 func parsePair(text string, versionPattern, webPattern *regexp.Regexp) (string, string, bool) {
