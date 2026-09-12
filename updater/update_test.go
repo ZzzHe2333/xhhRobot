@@ -11,6 +11,7 @@ import (
 
 func TestSelectAsset(t *testing.T) {
 	assets := []Asset{
+		{Name: "darwin-amd64.zip", BrowserDownloadURL: "https://example.com/darwin.zip"},
 		{Name: "linux-amd-64.zip", BrowserDownloadURL: "https://example.com/linux.zip"},
 		{Name: "windows-amd-64.zip", BrowserDownloadURL: "https://example.com/windows.zip"},
 		{Name: "windows-arm64.zip", BrowserDownloadURL: "https://example.com/windows-arm64.zip"},
