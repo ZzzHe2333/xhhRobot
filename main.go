@@ -32,6 +32,7 @@ func main() {
 	}
 
 	config.InitConfig()
+	xhh.RefreshWebClientVersion()
 	time.Sleep(1 * time.Second)
 	db.Init()
 	ai.Init()
