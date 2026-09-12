@@ -141,9 +141,9 @@ func fetchLatestRelease(repository string) (Release, error) {
 
 func selectAsset(assets []Asset, goos, goarch string) (Asset, error) {
 	osTokens := map[string][]string{
-		"windows": {"windows", "win32", "win64", "win-", "win_"},
+		"windows": {"windows", "win", "win32", "win64"},
 		"linux":   {"linux"},
-		"darwin":  {"darwin", "macos", "mac-os", "mac_os"},
+		"darwin":  {"darwin", "macos", "mac-os", "mac"},
 	}
 	archTokens := map[string][]string{
 		"amd64": {"amd64", "amd-64", "x86_64", "x86-64", "x64"},
@@ -196,12 +196,23 @@ func selectAsset(assets []Asset, goos, goarch string) (Asset, error) {
 }
 
 func containsAny(value string, tokens []string) bool {
+	normalizedValue := normalizeAssetToken(value)
 	for _, token := range tokens {
-		if strings.Contains(value, token) {
+		normalizedToken := strings.Trim(normalizeAssetToken(token), "-")
+		if strings.Contains(normalizedValue, "-"+normalizedToken+"-") {
 			return true
 		}
 	}
 	return false
+}
+
+func normalizeAssetToken(value string) string {
+	replacer := strings.NewReplacer("_", "-", ".", "-", " ", "-")
+	value = replacer.Replace(strings.ToLower(value))
+	for strings.Contains(value, "--") {
+		value = strings.ReplaceAll(value, "--", "-")
+	}
+	return "-" + strings.Trim(value, "-") + "-"
 }
 
 func downloadFile(url, destination string) error {
@@ -431,24 +442,24 @@ func installWindows(newExe, currentExe string) error {
 	scriptPath := currentExe + ".update.cmd"
 	script := fmt.Sprintf(`@echo off
 setlocal
-powershell -NoProfile -ExecutionPolicy Bypass -Command "try { Wait-Process -Id %d -ErrorAction SilentlyContinue } catch {}"
 for /L %%%%I in (1,1,30) do (
-  copy /Y "%s" "%s" >nul 2>&1 && goto updated
+  move /Y "%s" "%s" >nul 2>&1 && goto updated
   timeout /T 1 /NOBREAK >nul
 )
+echo xhhRobot update failed > "%s.update-error.log"
 exit /b 1
 :updated
-del /Q "%s" >nul 2>&1
+del /Q "%s.update-error.log" >nul 2>&1
 start "" "%s"
 del /Q "%%~f0" >nul 2>&1
-`, os.Getpid(), staged, currentExe, staged, currentExe)
+`, staged, currentExe, currentExe, currentExe, currentExe)
 
 	if err := os.WriteFile(scriptPath, []byte(script), 0600); err != nil {
 		os.Remove(staged)
 		return fmt.Errorf("创建 Windows 更新辅助脚本失败: %w", err)
 	}
 
-	cmd := exec.Command("cmd.exe", "/C", scriptPath)
+	cmd := exec.Command("cmd.exe", "/D", "/C", "call", scriptPath)
 	if err := cmd.Start(); err != nil {
 		os.Remove(staged)
 		os.Remove(scriptPath)
