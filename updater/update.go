@@ -60,7 +60,7 @@ func Run() error {
 	}
 	defer os.RemoveAll(tempDir)
 
-	archivePath := filepath.Join(tempDir, asset.Name)
+	archivePath := filepath.Join(tempDir, filepath.Base(asset.Name))
 	fmt.Println("正在下载更新包...")
 	if err := downloadFile(asset.BrowserDownloadURL, archivePath); err != nil {
 		return err
@@ -141,9 +141,9 @@ func fetchLatestRelease(repository string) (Release, error) {
 
 func selectAsset(assets []Asset, goos, goarch string) (Asset, error) {
 	osTokens := map[string][]string{
-		"windows": {"windows", "win"},
+		"windows": {"windows", "win32", "win64", "win-", "win_"},
 		"linux":   {"linux"},
-		"darwin":  {"darwin", "macos", "mac-os", "mac"},
+		"darwin":  {"darwin", "macos", "mac-os", "mac_os"},
 	}
 	archTokens := map[string][]string{
 		"amd64": {"amd64", "amd-64", "x86_64", "x86-64", "x64"},
