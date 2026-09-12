@@ -26,6 +26,7 @@ func main() {
 	if *mode == "update" {
 		if err := updater.Run(); err != nil {
 			loger.Loger.Error("[UPDATE]" + err.Error())
+			os.Exit(1)
 		}
 		return
 	}
