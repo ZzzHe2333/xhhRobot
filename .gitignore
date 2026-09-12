@@ -8,4 +8,7 @@ go/
 .gopath/
 zig/
 zig-*.zip
+*.update-new
+*.update.cmd
+*.update-error.log
 !config.example.json
