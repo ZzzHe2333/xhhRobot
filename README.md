@@ -16,7 +16,21 @@
 
 ## 下载
 
-前往[Release下载](https://github.com/SomeOvO/xhhRobot/releases)您对应的系统版本
+前往[Release下载](https://github.com/ZzzHe2333/xhhRobot/releases)您对应的系统版本
+
+## 云端更新
+
+程序支持从 `ZzzHe2333/xhhRobot` 的 GitHub Releases 拉取最新更新包并更新当前程序：
+
+```bash
+xhhRobot -mode update
+```
+
+Windows 用户也可以把 `update.bat` 与 `xhhRobot.exe` 放在同一目录，双击 `update.bat` 一键更新。
+
+更新器会按当前操作系统和 CPU 架构选择 ZIP 更新包；Release 提供 SHA-256 digest 时会自动校验。更新只替换主程序，不覆盖本地的 `config.json`、`cookie.json`、数据库和日志。
+
+如需测试其他更新仓库，可临时设置环境变量 `XHHROBOT_UPDATE_REPO=owner/repo`；不设置时固定使用 `ZzzHe2333/xhhRobot`。
 
 # PR&Issues
 
