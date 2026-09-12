@@ -9,9 +9,9 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 	"xhhrobot/loger"
 
@@ -36,6 +36,17 @@ type data struct {
 	} `json:"result"`
 }
 
+func qrStateQuery(qrURL string) (string, error) {
+	parsedURL, err := url.Parse(qrURL)
+	if err != nil {
+		return "", fmt.Errorf("解析二维码登录链接失败: %w", err)
+	}
+	if parsedURL.RawQuery == "" {
+		return "", fmt.Errorf("二维码登录链接缺少查询参数")
+	}
+	return "?" + parsedURL.RawQuery, nil
+}
+
 func Qr() {
 	fmt.Println("扫码登陆")
 	Path := "/account/get_qrcode_url/"
@@ -44,6 +55,8 @@ func Qr() {
 		loger.Loger.Error("[XHH]无法创建请求")
 		return
 	}
+	defer resp.Body.Close()
+
 	var resps data
 	read, err := io.ReadAll(resp.Body)
 	fmt.Println(string(read))
@@ -56,23 +69,41 @@ func Qr() {
 		loger.Loger.Error("[XHH]Can't unmarshal body")
 		return
 	}
+	if resps.Result.Qrcode == "" {
+		loger.Loger.Error("[XHH]二维码登录链接为空")
+		return
+	}
+
+	fmt.Printf("登录链接（二维码无法扫描时可直接打开）：\n%s\n", resps.Result.Qrcode)
+
+	stateQuery, err := qrStateQuery(resps.Result.Qrcode)
+	if err != nil {
+		loger.Loger.Error("[XHH]无法解析二维码登录链接", zap.Error(err))
+		return
+	}
+
 	code, err := qrcode.New(resps.Result.Qrcode, qrcode.Low)
 	if err != nil {
-		loger.Loger.Error("[XHH]无法生成二维码", zap.Error(err))
-		return
+		loger.Loger.Warn("[XHH]无法生成二维码，请使用上方登录链接", zap.Error(err))
+	} else {
+		if err := code.WriteFile(256, "qrcode.png"); err != nil {
+			loger.Loger.Warn("[XHH]创建二维码图片失败，请使用终端二维码或上方登录链接", zap.Error(err))
+		}
+		fmt.Println(code.ToSmallString(true))
 	}
-	err = code.WriteFile(256, "qrcode.png")
-	if err != nil {
-		loger.Loger.Error("[XHH]创建二维码图片失败", zap.Error(err))
-		return
-	}
-	ascii := code.ToSmallString(true)
-	fmt.Println(ascii)
+
 	for {
 		path := "/account/qr_state/"
-		resp := SendReq("GET", path, nil, fmt.Sprintf("?%v", strings.Split(resps.Result.Qrcode, "https://api.xiaoheihe.cn/account/qr_login/?")[1]))
+		resp := SendReq("GET", path, nil, stateQuery)
+		if resp == nil {
+			loger.Loger.Error("[XHH]查询二维码登录状态失败")
+			time.Sleep(1 * time.Second)
+			continue
+		}
+
 		var resps data
 		data, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
 		if err != nil {
 			loger.Loger.Error("[XHH]无法读取body")
 			return
