@@ -14,17 +14,26 @@ import (
 	"xhhrobot/config"
 	"xhhrobot/db"
 	"xhhrobot/loger"
+	"xhhrobot/updater"
 	"xhhrobot/xhh"
 )
 
 func main() {
 	loger.InitLog()
+	mode := flag.String("mode", "default", "Switch a mode when start")
+	flag.Parse()
+
+	if *mode == "update" {
+		if err := updater.Run(); err != nil {
+			loger.Loger.Error("[UPDATE]" + err.Error())
+		}
+		return
+	}
+
 	config.InitConfig()
 	time.Sleep(1 * time.Second)
 	db.Init()
 	ai.Init()
-	mode := flag.String("mode", "default", "Switch a mode when start")
-	flag.Parse()
 	start(mode)
 	loger.Loger.Info("[MAIN]正在关闭...")
 	ai.Close()
@@ -67,7 +76,7 @@ func CheckNew() {
 func start(mode *string) {
 	switch *mode {
 	case "default":
-		loger.Loger.Info("\nhttps://github.com/SomeOvO/xhhRobot\n你需要输入启动项\n-mode start | login | test")
+		loger.Loger.Info("\nhttps://github.com/ZzzHe2333/xhhRobot\n你需要输入启动项\n-mode start | login | test | update\nWindows 也可以双击 update.bat 一键更新")
 	case "test":
 		xhh.RunTest()
 	case "login":
